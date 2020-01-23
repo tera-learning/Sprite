@@ -6,6 +6,9 @@
 
 struct ConstantBuffer {
 	int centerWindow[2];
+	int drawPos[2];
+	int height;
+	int width;
 };
 
 class DrawManager final

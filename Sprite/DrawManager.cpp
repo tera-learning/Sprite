@@ -178,44 +178,8 @@ HRESULT DrawManager::Create(HWND hwnd)
 	//////////////////////////////////////////////////////////////////////////////////
 	//テクスチャの作成
 	//////////////////////////////////////////////////////////////////////////////////
-	int textureIndex = m_TextureManager.AddTexture("Image.nbmp");
-	const Texture& texture = m_TextureManager.GetTexture(textureIndex);
-
-	D3D11_TEXTURE2D_DESC texture2DDesc;
-	ZeroMemory(&texture2DDesc, sizeof(D3D11_TEXTURE2D_DESC));
-	texture2DDesc.Width = texture.GetWidth();
-	texture2DDesc.Height = texture.GetHeight();
-	texture2DDesc.MipLevels = 1;
-	texture2DDesc.ArraySize = 1;
-	texture2DDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	texture2DDesc.SampleDesc.Count = 1;
-	texture2DDesc.SampleDesc.Quality = 0;
-	texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-	texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	texture2DDesc.CPUAccessFlags = 0;
-	texture2DDesc.MiscFlags = 0;
-
-	D3D11_SUBRESOURCE_DATA subTextureResource;
-	ZeroMemory(&subTextureResource, sizeof(D3D11_SUBRESOURCE_DATA));
-	subTextureResource.pSysMem = texture.GetTextureBuffer();
-	subTextureResource.SysMemPitch = texture.GetWidth() * texture.GetPixelByte();
-
-	hresult = m_Device->CreateTexture2D(&texture2DDesc, &subTextureResource, &m_Texture);
-
-	if (FAILED(hresult))
-		return hresult;
-
-	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-	ZeroMemory(&shaderResourceViewDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-	shaderResourceViewDesc.Format = texture2DDesc.Format;
-	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-	shaderResourceViewDesc.Texture2D.MipLevels = 1;
-
-	hresult = m_Device->CreateShaderResourceView(m_Texture.Get(), &shaderResourceViewDesc, &m_TextureView);
-
-	if (FAILED(hresult))
-		return hresult;
+	m_TextureManager.AddTexture("Image.nbmp");
+	m_TextureManager.AddTexture("Image2.nbmp");
 
 
 	//////////////////////////////////////////////////////////////////////////////////
@@ -257,30 +221,27 @@ void DrawManager::Render(HWND hwnd, CPoint pos)
 	GetClientRect(hwnd, &rect);
 	center = rect.CenterPoint();
 
-	//クライアント領域の中心をConstantBufferに設定
-	ConstantBuffer constantBuffer;
-	constantBuffer.centerWindow[0] = center.x;
-	constantBuffer.centerWindow[1] = center.y;
-
 	UINT strides = sizeof(Vertex);
 	UINT offsets = 0;
 
 	//描画するスプライトを設定
-	m_Sprite.AddSprite(pos, 0);
+	int textureIndex = 1;
+	m_Sprite.AddSprite(pos, textureIndex);
+	Texture texture = m_TextureManager.GetTexture(textureIndex);
 
-	Texture texture = m_TextureManager.GetTexture(0);
-	int width = texture.GetWidth();
-	int height = texture.GetHeight();
+	//クライアント領域の中心をConstantBufferに設定
+	ConstantBuffer constantBuffer;
+	constantBuffer.centerWindow[0] = center.x;
+	constantBuffer.centerWindow[1] = center.y;
+	constantBuffer.drawPos[0] = pos.x;
+	constantBuffer.drawPos[1] = pos.y;
+	constantBuffer.height = texture.GetHeight();
+	constantBuffer.width = texture.GetWidth();
 
-	int top = pos.y - height / 2;
-	int left = pos.x - width / 2;
-	int bottom = pos.y + height / 2;
-	int right = pos.x + width / 2;
-
-	m_VertexManager.AddVertex({ {left, top}, {0.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 0.0f} });
-	m_VertexManager.AddVertex({ {right, top}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f} });
-	m_VertexManager.AddVertex({ {left, bottom}, {0.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f} });
-	m_VertexManager.AddVertex({ {right, bottom}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 1.0f} });
+	m_VertexManager.AddVertex({ {0.0f, 0.0f} });
+	m_VertexManager.AddVertex({ {1.0f, 0.0f} });
+	m_VertexManager.AddVertex({ {0.0f, 1.0f} });
+	m_VertexManager.AddVertex({ {1.0f, 1.0f} });
 
 
 	//////////////////////////////////////////////////////////////////////////////////
@@ -306,6 +267,46 @@ void DrawManager::Render(HWND hwnd, CPoint pos)
 		&subresource,	//初期化データへのポインタ
 		&m_VertexBuffer	//作成されるバッファーへのポインタ
 	);
+
+	if (FAILED(hresult))
+		return;
+
+
+	//////////////////////////////////////////////////////////////////////////////////
+	//テクスチャの設定
+	//////////////////////////////////////////////////////////////////////////////////
+	D3D11_TEXTURE2D_DESC texture2DDesc;
+	ZeroMemory(&texture2DDesc, sizeof(D3D11_TEXTURE2D_DESC));
+	texture2DDesc.Width = texture.GetWidth();
+	texture2DDesc.Height = texture.GetHeight();
+	texture2DDesc.MipLevels = 1;
+	texture2DDesc.ArraySize = 1;
+	texture2DDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	texture2DDesc.SampleDesc.Count = 1;
+	texture2DDesc.SampleDesc.Quality = 0;
+	texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+	texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	texture2DDesc.CPUAccessFlags = 0;
+	texture2DDesc.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA subTextureResource;
+	ZeroMemory(&subTextureResource, sizeof(D3D11_SUBRESOURCE_DATA));
+	subTextureResource.pSysMem = texture.GetTextureBuffer();
+	subTextureResource.SysMemPitch = texture.GetWidth() * texture.GetPixelByte();
+
+	hresult = m_Device->CreateTexture2D(&texture2DDesc, &subTextureResource, &m_Texture);
+
+	if (FAILED(hresult))
+		return;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+	ZeroMemory(&shaderResourceViewDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+	shaderResourceViewDesc.Format = texture2DDesc.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	hresult = m_Device->CreateShaderResourceView(m_Texture.Get(), &shaderResourceViewDesc, &m_TextureView);
 
 	if (FAILED(hresult))
 		return;

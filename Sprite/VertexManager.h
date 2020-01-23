@@ -2,8 +2,6 @@
 #include <vector>
 
 struct Vertex {
-	int pos[2];
-	float col[4];
 	float tex[2];
 };
 
