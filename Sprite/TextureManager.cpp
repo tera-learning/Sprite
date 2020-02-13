@@ -22,6 +22,10 @@ Texture::Texture(const std::string& str)
 	int imageSizeByte = imageSize * 3;
 
 	//画像一括読み込み
+	//★　メモリ
+	//Raii 考え方　スマートポインタ　オーナーシップ,ライフタイムを考える　
+
+	//画像一括読み込み　newしたときに解放のことも考える
 	char* col = new char[imageSizeByte];
 	ifs.read(col, imageSizeByte);
 
@@ -38,6 +42,9 @@ Texture::Texture(const std::string& str)
 			m_Buffer[i] = 255;
 		}
 	}
+
+	//メモリーリークしてる
+	delete[] col;
 }
 
 Texture::~Texture()

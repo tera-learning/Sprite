@@ -111,6 +111,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
+		//ゲームループ回すように修正★
+		//+ボタン押すとランダムでテクスチャ描画　テクスチャが画面上で動く
+		//-ボタンを押すと古いテクスチャから消していく
+		//SOLID ソリッド　オブジェクト指向の原則　単一責任
+		//オープンクローズプリンシパル
+		//ステートパターン　デザインパターン
 	}
 
 	return msg.wParam;
