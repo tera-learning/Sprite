@@ -9,21 +9,23 @@ struct NewBitMapHeader {
 };
 
 struct Color {
-	unsigned char blue;
-	unsigned char green;
 	unsigned char red;
+	unsigned char green;
+	unsigned char blue;
+	unsigned char alpha;
 };
 #pragma pack()
 
 class Texture final
 {
 private:
-	std::vector<unsigned char> m_Buffer;
+	std::unique_ptr<char[]> m_Buffer;
 	int m_Width;
 	int m_Height;
 	int m_PixelByte;
 
 public:
+	Texture();
 	Texture(const std::string& str);
 	Texture(const Texture& texture) = default;
 	Texture& operator=(const Texture& texture) = default;
@@ -33,21 +35,7 @@ public:
 	int GetHeight(void) const;
 	int GetPixelByte(void) const;
 	int GetSize(void) const;
-	const unsigned char* GetTextureBuffer(void) const;
-};
-
-class TextureManager final
-{
-private:
-	std::vector<Texture> m_TextureList;
-
-public:
-	TextureManager();
-	TextureManager(const TextureManager& textureManager) = delete;
-	TextureManager& operator=(const TextureManager& textureManager) = delete;
-	/* virtual */ ~TextureManager();
-
-	int AddTexture(const std::string& str);
-	const Texture& GetTexture(int textureIndex) const;
+	void LoadTexture(const std::string& str);
+	const char* GetTextureBuffer(void) const;
 };
 

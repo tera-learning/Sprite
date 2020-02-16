@@ -5,20 +5,21 @@ struct Vertex {
 	float tex[2];
 };
 
-class VertexManager final
+class VertexBuffer final
 {
 private:
 	int m_VertexNum;
 	std::vector<Vertex> m_VertexList;
 
 public:
-	VertexManager();
-	VertexManager(const VertexManager& vertexManager) = delete;
-	VertexManager& operator=(const VertexManager& vertexManager) = delete;
-	/*virtual*/ ~VertexManager();
+	VertexBuffer();
+	VertexBuffer(const VertexBuffer& vertexManager) = delete;
+	VertexBuffer& operator=(const VertexBuffer& vertexManager) = delete;
+	/*virtual*/ ~VertexBuffer();
 
 	const Vertex* GetVertexList(void);
 	int GetVertexNum(void);
 	void AddVertex(const Vertex& vertex);
 	int GetSize(void) const;
+	void ClearVertex(void);
 };

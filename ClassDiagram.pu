@@ -19,10 +19,6 @@ class "Sprite" as Sprite{
     Draw()
 }
 
-class "SpriteList" as SpriteList{
-    m_SpriteList
-}
-
 class "ControlSprite" as ControlSprite{
     update()
 }
@@ -44,28 +40,27 @@ class "DrawManager" as DrawManager{
 
     Create()
     Render()
-    update()
-    ControlSpriteList()
+    UpdateWindow()
+    UpdateSpriteList()
 }
 
-class "SpriteControllerFactory" as SpriteControllerFactory{
-    Create()
+class "SpriteControllerKeyBinding" as SpriteControllerKeyBinding{
+    CreateController()
 }
 
-AddSprite --> SpriteList
-DeleteSprite --> SpriteList
-MoveSprite --> SpriteList
+AddSprite --> Sprite
+DeleteSprite --> Sprite
+MoveSprite --> Sprite
 DrawManager --> ControlSprite : use >
-DrawManager --> SpriteControllerFactory : use >
-DrawManager o-- SpriteList
+DrawManager --> SpriteControllerKeyBinding : use >
+DrawManager o-- Sprite
 Sprite o-- Texture
-SpriteList *-- Sprite
 ControlSprite <|-- AddSprite
 ControlSprite <|-- DeleteSprite
 ControlSprite <|-- MoveSprite
-SpriteControllerFactory --> AddSprite
-SpriteControllerFactory --> DeleteSprite
-SpriteControllerFactory --> MoveSprite
+SpriteControllerKeyBinding --> AddSprite
+SpriteControllerKeyBinding --> DeleteSprite
+SpriteControllerKeyBinding --> MoveSprite
 
 
 @enduml

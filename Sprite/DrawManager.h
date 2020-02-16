@@ -1,5 +1,7 @@
 #pragma once
 #include "Sprite.h"
+#include "Texture.h"
+#include "VertexBuffer.h"
 #include <Windows.h>
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -14,9 +16,9 @@ struct ConstantBuffer {
 class DrawManager final
 {
 private:
-	SpriteList m_Sprite;
-	TextureManager m_TextureManager;
-	VertexManager m_VertexManager;
+	std::vector<Sprite> m_SpriteList;
+	std::shared_ptr<Texture> m_TextureImage;
+	VertexBuffer m_Vertex;
 
 public:
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_Context;
@@ -33,12 +35,14 @@ public:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_ConstantBuffer;
 	D3D11_VIEWPORT m_ViewPort;
 
-	DrawManager() {};
+	DrawManager(){};
 	DrawManager(const DrawManager& drawManager) = delete;
 	DrawManager& operator=(const DrawManager& drawManager) = delete;
 	/* virtual */ ~DrawManager() { m_Context->ClearState();  };
 
 	HRESULT Create(HWND hwnd);
-	void Render(HWND hwnd, CPoint pos);
+	void Render(HWND hwnd);
+	void UpdateWindow();
+	void UpdateSpriteList(WPARAM key);
 };
 

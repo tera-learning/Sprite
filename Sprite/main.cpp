@@ -12,11 +12,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
-	case WM_LBUTTONDOWN:
-		CPoint pos;
-		pos.x = LOWORD(lp);
-		pos.y = HIWORD(lp);
-		dx11Manager.Render(hWnd, pos);
+	case WM_KEYDOWN:
+		dx11Manager.UpdateSpriteList(wp);
 		break;
 	}
 
@@ -96,7 +93,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//////////////////////////////////////////////////////////////////////////////////
 	//描画
 	//////////////////////////////////////////////////////////////////////////////////
-
 	dx11Manager.Create(hwnd);
 
 
@@ -111,12 +107,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		//ゲームループ回すように修正★
-		//+ボタン押すとランダムでテクスチャ描画　テクスチャが画面上で動く
-		//-ボタンを押すと古いテクスチャから消していく
-		//SOLID ソリッド　オブジェクト指向の原則　単一責任
-		//オープンクローズプリンシパル
-		//ステートパターン　デザインパターン
+		else
+		{
+			dx11Manager.UpdateWindow();
+			dx11Manager.Render(hwnd);
+		}
 	}
 
 	return msg.wParam;

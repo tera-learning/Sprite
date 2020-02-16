@@ -1,7 +1,10 @@
 #include "DrawManager.h"
-#include "VertexManager.h"
+#include "VertexBuffer.h"
+#include "SpriteControllerKeyBinding.h"
+#include "MoveSprite.h"
 #include <atltypes.h>
 #include <d3dcompiler.h>
+#include <random>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
 
@@ -95,6 +98,40 @@ HRESULT DrawManager::Create(HWND hwnd)
 
 
 	//////////////////////////////////////////////////////////////////////////////////
+	//頂点バッファの生成
+	//////////////////////////////////////////////////////////////////////////////////
+	m_Vertex.AddVertex({ {0.0f, 0.0f} });
+	m_Vertex.AddVertex({ {1.0f, 0.0f} });
+	m_Vertex.AddVertex({ {0.0f, 1.0f} });
+	m_Vertex.AddVertex({ {1.0f, 1.0f} });
+
+	D3D11_BUFFER_DESC bufferDesc;
+
+	ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
+	bufferDesc.ByteWidth = sizeof(Vertex) * m_Vertex.GetVertexNum();	//バッファーのサイズ (バイト単位)
+	bufferDesc.Usage = D3D11_USAGE_DEFAULT;									//バッファーで想定されている読み込みおよび書き込みの方法
+	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;						//バッファーをどのようにパイプラインにバインドするか
+	bufferDesc.CPUAccessFlags = 0;											//CPU アクセスのフラグ
+	bufferDesc.MiscFlags = 0;												//その他のフラグ
+	bufferDesc.StructureByteStride = 0;										//構造体が構造化バッファーを表す場合、その構造体のサイズ (バイト単位)
+
+	D3D11_SUBRESOURCE_DATA subresource;
+	ZeroMemory(&subresource, sizeof(D3D11_SUBRESOURCE_DATA));
+	subresource.pSysMem = m_Vertex.GetVertexList();	//初期化データへのポインタ
+	subresource.SysMemPitch = 0;							//テクスチャーにある 1 本の線の先端から隣の線までの距離 (バイト単位) 
+	subresource.SysMemSlicePitch = 0;						//1 つの深度レベルの先端から隣の深度レベルまでの距離 (バイト単位)
+
+	hresult = m_Device->CreateBuffer(
+		&bufferDesc,	//バッファーの記述へのポインタ
+		&subresource,	//初期化データへのポインタ
+		&m_VertexBuffer	//作成されるバッファーへのポインタ
+	);
+
+	if (FAILED(hresult))
+		return hresult;
+
+
+	//////////////////////////////////////////////////////////////////////////////////
 	//VertexShaderの生成
 	//////////////////////////////////////////////////////////////////////////////////
 	ID3DBlob* pBlob;
@@ -129,8 +166,6 @@ HRESULT DrawManager::Create(HWND hwnd)
 	//入力レイアウトの生成
 	//////////////////////////////////////////////////////////////////////////////////
 	D3D11_INPUT_ELEMENT_DESC vertexDesc[] = {
-		{ "POSITION",	0, DXGI_FORMAT_R32G32_UINT,			0,	0,								D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR",		0, DXGI_FORMAT_R32G32B32A32_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD",	0, DXGI_FORMAT_R32G32_FLOAT,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
@@ -178,10 +213,50 @@ HRESULT DrawManager::Create(HWND hwnd)
 	//////////////////////////////////////////////////////////////////////////////////
 	//テクスチャの作成
 	//////////////////////////////////////////////////////////////////////////////////
-	m_TextureManager.AddTexture("Image.nbmp");
-	m_TextureManager.AddTexture("Image2.nbmp");
+	m_TextureImage = std::make_shared<Texture>();
+	m_TextureImage->LoadTexture("Image.nbmp");
 
 
+	//////////////////////////////////////////////////////////////////////////////////
+	//テクスチャの設定
+	//////////////////////////////////////////////////////////////////////////////////
+	D3D11_TEXTURE2D_DESC texture2DDesc;
+	ZeroMemory(&texture2DDesc, sizeof(D3D11_TEXTURE2D_DESC));
+	texture2DDesc.Width = m_TextureImage->GetWidth();
+	texture2DDesc.Height = m_TextureImage->GetHeight();
+	texture2DDesc.MipLevels = 1;
+	texture2DDesc.ArraySize = 1;
+	texture2DDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texture2DDesc.SampleDesc.Count = 1;
+	texture2DDesc.SampleDesc.Quality = 0;
+	texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
+	texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	texture2DDesc.CPUAccessFlags = 0;
+	texture2DDesc.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA subTextureResource;
+	ZeroMemory(&subTextureResource, sizeof(D3D11_SUBRESOURCE_DATA));
+	subTextureResource.pSysMem = m_TextureImage->GetTextureBuffer();
+	subTextureResource.SysMemPitch = m_TextureImage->GetWidth() * m_TextureImage->GetPixelByte();
+
+	hresult = m_Device->CreateTexture2D(&texture2DDesc, &subTextureResource, &m_Texture);
+
+	if (FAILED(hresult))
+		return hresult;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+	ZeroMemory(&shaderResourceViewDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+	shaderResourceViewDesc.Format = texture2DDesc.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	hresult = m_Device->CreateShaderResourceView(m_Texture.Get(), &shaderResourceViewDesc, &m_TextureView);
+
+	if (FAILED(hresult))
+		return hresult;
+	
+	
 	//////////////////////////////////////////////////////////////////////////////////
 	//サンプラーの作成
 	//////////////////////////////////////////////////////////////////////////////////
@@ -212,7 +287,7 @@ HRESULT DrawManager::Create(HWND hwnd)
 	return hresult;
 }
 
-void DrawManager::Render(HWND hwnd, CPoint pos)
+void DrawManager::Render(HWND hwnd)
 {
 
 	//クライアント領域取得
@@ -224,110 +299,55 @@ void DrawManager::Render(HWND hwnd, CPoint pos)
 	UINT strides = sizeof(Vertex);
 	UINT offsets = 0;
 
-	//描画するスプライトを設定
-	int textureIndex = 1;
-	m_Sprite.AddSprite(pos, textureIndex);
-	Texture texture = m_TextureManager.GetTexture(textureIndex);
+	FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	m_Context->ClearRenderTargetView(m_RenderTargetView.Get(), color);						//レンダーターゲットをクリアする
 
-	//クライアント領域の中心をConstantBufferに設定
-	ConstantBuffer constantBuffer;
-	constantBuffer.centerWindow[0] = center.x;
-	constantBuffer.centerWindow[1] = center.y;
-	constantBuffer.drawPos[0] = pos.x;
-	constantBuffer.drawPos[1] = pos.y;
-	constantBuffer.height = texture.GetHeight();
-	constantBuffer.width = texture.GetWidth();
+	int spriteNum = m_SpriteList.size();
+	for (int i = 0; i < spriteNum; i++)
+	{
+		Sprite sprite = m_SpriteList[i];
 
-	m_VertexManager.AddVertex({ {0.0f, 0.0f} });
-	m_VertexManager.AddVertex({ {1.0f, 0.0f} });
-	m_VertexManager.AddVertex({ {0.0f, 1.0f} });
-	m_VertexManager.AddVertex({ {1.0f, 1.0f} });
+		int x = static_cast<int>(rect.Width() * sprite.m_DrawX);
+		int y = static_cast<int>(rect.Height() * sprite.m_DrawY);
 
+		//クライアント領域の中心をConstantBufferに設定
+		ConstantBuffer constantBuffer;
+		constantBuffer.centerWindow[0] = center.x;
+		constantBuffer.centerWindow[1] = center.y;
+		constantBuffer.drawPos[0] = x;
+		constantBuffer.drawPos[1] = y;
+		constantBuffer.height = m_TextureImage->GetHeight();
+		constantBuffer.width = m_TextureImage->GetWidth();
 
-	//////////////////////////////////////////////////////////////////////////////////
-	//頂点バッファの生成
-	//////////////////////////////////////////////////////////////////////////////////
-	D3D11_BUFFER_DESC bufferDesc;
-	ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
-	bufferDesc.ByteWidth = sizeof(Vertex) * m_VertexManager.GetVertexNum();	//バッファーのサイズ (バイト単位)
-	bufferDesc.Usage = D3D11_USAGE_DEFAULT;									//バッファーで想定されている読み込みおよび書き込みの方法
-	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;						//バッファーをどのようにパイプラインにバインドするか
-	bufferDesc.CPUAccessFlags = 0;											//CPU アクセスのフラグ
-	bufferDesc.MiscFlags = 0;												//その他のフラグ
-	bufferDesc.StructureByteStride = 0;										//構造体が構造化バッファーを表す場合、その構造体のサイズ (バイト単位)
+		//////////////////////////////////////////////////////////////////////////////////
+		//描画
+		//////////////////////////////////////////////////////////////////////////////////
+		m_Context->IASetInputLayout(m_InputLayout.Get());										//インプットレイアウトの設定
+		m_Context->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &strides, &offsets);	//頂点バッファの設定
+		m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);				//頂点バッファがどの順番で三角形を作るか
+		m_Context->VSSetConstantBuffers(0, 1, m_ConstantBuffer.GetAddressOf());					//定数バッファの設定
+		m_Context->UpdateSubresource(m_ConstantBuffer.Get(), 0, nullptr, &constantBuffer, 0, 0);//定数バッファの更新
+		m_Context->VSSetShader(m_VertexShader.Get(), nullptr, 0);								//頂点シェーダーの設定
+		m_Context->RSSetViewports(1, &m_ViewPort);												//ビューポートの設定
+		m_Context->PSSetShader(m_PixelShader.Get(), nullptr, 0);								//ピクセルシェーダーの設定
+		m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), nullptr);			//レンダーターゲットの設定
+		m_Context->PSSetShaderResources(0, 1, m_TextureView.GetAddressOf());					//テクスチャの設定
+		m_Context->PSSetSamplers(0, 1, m_SamplerState.GetAddressOf());							//サンプラーの設定
+		m_Context->Draw(m_Vertex.GetVertexNum(), 0);										//描画する
+	}
 
-	D3D11_SUBRESOURCE_DATA subresource;
-	ZeroMemory(&subresource, sizeof(D3D11_SUBRESOURCE_DATA));
-	subresource.pSysMem = m_VertexManager.GetVertexList();	//初期化データへのポインタ
-	subresource.SysMemPitch = 0;							//テクスチャーにある 1 本の線の先端から隣の線までの距離 (バイト単位) 
-	subresource.SysMemSlicePitch = 0;						//1 つの深度レベルの先端から隣の深度レベルまでの距離 (バイト単位)
-
-	HRESULT hresult = m_Device->CreateBuffer(
-		&bufferDesc,	//バッファーの記述へのポインタ
-		&subresource,	//初期化データへのポインタ
-		&m_VertexBuffer	//作成されるバッファーへのポインタ
-	);
-
-	if (FAILED(hresult))
-		return;
-
-
-	//////////////////////////////////////////////////////////////////////////////////
-	//テクスチャの設定
-	//////////////////////////////////////////////////////////////////////////////////
-	D3D11_TEXTURE2D_DESC texture2DDesc;
-	ZeroMemory(&texture2DDesc, sizeof(D3D11_TEXTURE2D_DESC));
-	texture2DDesc.Width = texture.GetWidth();
-	texture2DDesc.Height = texture.GetHeight();
-	texture2DDesc.MipLevels = 1;
-	texture2DDesc.ArraySize = 1;
-	texture2DDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	texture2DDesc.SampleDesc.Count = 1;
-	texture2DDesc.SampleDesc.Quality = 0;
-	texture2DDesc.Usage = D3D11_USAGE_DEFAULT;
-	texture2DDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	texture2DDesc.CPUAccessFlags = 0;
-	texture2DDesc.MiscFlags = 0;
-
-	D3D11_SUBRESOURCE_DATA subTextureResource;
-	ZeroMemory(&subTextureResource, sizeof(D3D11_SUBRESOURCE_DATA));
-	subTextureResource.pSysMem = texture.GetTextureBuffer();
-	subTextureResource.SysMemPitch = texture.GetWidth() * texture.GetPixelByte();
-
-	hresult = m_Device->CreateTexture2D(&texture2DDesc, &subTextureResource, &m_Texture);
-
-	if (FAILED(hresult))
-		return;
-
-	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-	ZeroMemory(&shaderResourceViewDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-	shaderResourceViewDesc.Format = texture2DDesc.Format;
-	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-	shaderResourceViewDesc.Texture2D.MipLevels = 1;
-
-	hresult = m_Device->CreateShaderResourceView(m_Texture.Get(), &shaderResourceViewDesc, &m_TextureView);
-
-	if (FAILED(hresult))
-		return;
-
-
-	//////////////////////////////////////////////////////////////////////////////////
-	//描画
-	//////////////////////////////////////////////////////////////////////////////////
-	m_Context->IASetInputLayout(m_InputLayout.Get());										//インプットレイアウトの設定
-	m_Context->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &strides, &offsets);	//頂点バッファの設定
-	m_Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);				//頂点バッファがどの順番で三角形を作るか
-	m_Context->VSSetConstantBuffers(0, 1, m_ConstantBuffer.GetAddressOf());					//定数バッファの設定
-	m_Context->UpdateSubresource(m_ConstantBuffer.Get(), 0, nullptr, &constantBuffer, 0, 0);//定数バッファの更新
-	m_Context->VSSetShader(m_VertexShader.Get(), nullptr, 0);								//頂点シェーダーの設定
-	m_Context->RSSetViewports(1, &m_ViewPort);												//ビューポートの設定
-	m_Context->PSSetShader(m_PixelShader.Get(), nullptr, 0);								//ピクセルシェーダーの設定
-	m_Context->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), nullptr);			//レンダーターゲットの設定
-	m_Context->PSSetShaderResources(0, 1, m_TextureView.GetAddressOf());					//テクスチャの設定
-	m_Context->PSSetSamplers(0, 1, m_SamplerState.GetAddressOf());							//サンプラーの設定
-
-	m_Context->Draw(m_VertexManager.GetVertexNum(), 0);										//描画する
 	m_Swapchain->Present(0, 0);																//スワップ チェーンが所有するバック バッファのシーケンスの中の次のバッファの内容を表示
 }
 
+void DrawManager::UpdateWindow()
+{
+	MoveSprite moveSprite;
+	moveSprite.Update(&m_SpriteList);
+}
+
+void DrawManager::UpdateSpriteList(WPARAM key)
+{
+	SpriteControllerKeyBinding spriteControllerKeyBinding;
+	std::unique_ptr<ControlSprite> controlSprite = spriteControllerKeyBinding.CreateController(key);
+	controlSprite->Update(&m_SpriteList);
+}
