@@ -48,16 +48,28 @@ class "SpriteControllerKeyBinding" as SpriteControllerKeyBinding{
     CreateController()
 }
 
+class "DebugMenu" as DebugMenu{
+    Create()
+    ExecDisp()
+}
+
+class "FrameRate" as FrameRate{
+    StartMeasureTime()
+    IncrFrame()
+    GetFrameRate()
+}
+
 AddSprite --> Sprite
 DeleteSprite --> Sprite
 MoveSprite --> Sprite
 DrawManager --> ControlSprite : use >
 DrawManager --> SpriteControllerKeyBinding : use >
 DrawManager o-- Sprite
+DrawManager o-- DebugMenu
+DrawManager o-- FrameRate
 Sprite o-- Texture
 ControlSprite <|-- AddSprite
 ControlSprite <|-- DeleteSprite
-ControlSprite <|-- MoveSprite
 SpriteControllerKeyBinding --> AddSprite
 SpriteControllerKeyBinding --> DeleteSprite
 SpriteControllerKeyBinding --> MoveSprite

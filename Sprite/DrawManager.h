@@ -16,6 +16,7 @@ struct ConstantBuffer {
 class DrawManager final
 {
 private:
+	//deque コンテナ選ぶときにどれを選ぶか意識　メモリ配置
 	std::vector<Sprite> m_SpriteList;
 	std::shared_ptr<Texture> m_TextureImage;
 	VertexBuffer m_Vertex;
